@@ -1,8 +1,197 @@
 /*
+ * Organizer Plugin Styles
+ * Native Obsidian-style UI for the attachment organizer view
+ */
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+/* Header */
+.katt-attach-view .katt-header {
+  padding: 6px 8px 4px;
+  gap: 6px;
+}
 
-If your plugin does not need CSS, delete this file.
+/* Stats row */
+.katt-attach-view .katt-stats {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  padding: 2px 4px;
+}
 
-*/
+.katt-attach-view .katt-stats.is-hidden {
+  display: none;
+}
+
+/* Search row */
+.katt-attach-view .katt-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.katt-attach-view .katt-search-row .katt-filter {
+  flex: 1;
+}
+
+/* Filter toggle button (square) */
+.katt-attach-view .katt-filter-toggle {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 28px !important;
+  --icon-size: 18px;
+}
+
+/* Mark filter panel */
+.katt-attach-view .katt-mark-filter-panel {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 0 0;
+}
+
+.katt-attach-view .katt-mark-filter {
+  justify-content: center;
+}
+
+/* Mark buttons */
+.katt-attach-view .katt-mark-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  border-radius: var(--radius-s);
+  position: relative;
+}
+
+/* Badge bubbles on mark buttons */
+.katt-attach-view .katt-mark-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: var(--shadow-s);
+  pointer-events: none;
+}
+
+.katt-attach-view .katt-mark-badge.is-empty {
+  display: none;
+}
+
+/* Mark button colors */
+.katt-attach-view .katt-mark-dash,
+.katt-attach-view .katt-mark-k {
+  color: var(--text-muted);
+}
+
+.katt-attach-view .katt-mark-b,
+.katt-attach-view .katt-mark-r {
+  color: var(--color-yellow);
+}
+
+.katt-attach-view .katt-mark-m,
+.katt-attach-view .katt-mark-c {
+  color: var(--color-red);
+}
+
+/* Active state */
+.katt-attach-view .katt-mark-btn.is-active {
+  color: var(--interactive-accent);
+}
+
+/* Stats row */
+.katt-attach-view .katt-stats {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 0;
+}
+
+/* Tree container */
+.katt-attach-view .katt-tree {
+  overflow: auto;
+  padding: 2px 0;
+}
+
+.katt-attach-view .tree-item-self {
+  overflow: visible;
+}
+
+/* Flair/mark badges */
+.katt-attach-view .katt-flair {
+  min-width: 2ch;
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.katt-attach-view .katt-flair.is-empty {
+  opacity: 0;
+}
+
+/* Mark colors in tree */
+.katt-attach-view .katt-mark.is-K,
+.katt-attach-view .katt-mark.is-dash {
+  color: var(--text-faint);
+}
+
+.katt-attach-view .katt-mark.is-B,
+.katt-attach-view .katt-mark.is-R {
+  color: var(--color-yellow);
+}
+
+.katt-attach-view .katt-mark.is-M,
+.katt-attach-view .katt-mark.is-C {
+  color: var(--color-red);
+}
+
+/* Preview mode green */
+.katt-attach-view .katt-mark.is-preview.is-B,
+.katt-attach-view .katt-mark.is-preview.is-R {
+  color: var(--color-green);
+}
+
+/* Strike-through for moved files */
+.katt-attach-view .katt-strike {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Target path indicator */
+.katt-attach-view .katt-target-path {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-faint);
+  margin-left: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+/* Active toggle button */
+.katt-attach-view .nav-action-button.is-active,
+.katt-attach-view .katt-filter-toggle.is-active {
+  color: var(--interactive-accent);
+}
