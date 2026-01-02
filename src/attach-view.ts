@@ -5,7 +5,7 @@ import type { DetectReport, FileEntry } from "./main";
 export const ATTACH_VIEW_TYPE = "k-plugin-attachments-view";
 
 type Provider = {
-  detectReport: (force?: boolean) => Promise<DetectReport>;
+  detectReport: (force?: boolean) => DetectReport;
   openFileByPath: (path: string) => Promise<void>;
   applyPlan: () => Promise<void>;
   // New: undo support
@@ -245,11 +245,11 @@ export class AttachView extends ItemView {
     this.contentEl.removeClass("katt-attach-view");
   }
 
-  public async rescan(force = false): Promise<void> {
+  public rescan(force = false): void {
     this.elTreeWrap.empty();
     this.elStats.setText("Scanning…");
     const t0 = performance.now();
-    this.report = await this.plugin.detectReport(force);
+    this.report = this.plugin.detectReport(force);
     const ms = performance.now() - t0;
 
     const s = this.report.stats;

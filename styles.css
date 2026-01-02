@@ -252,3 +252,47 @@
   background: var(--background-modifier-active-hover);
   color: var(--text-accent);
 }
+
+/* ===== Settings Tab Styles ===== */
+
+/* Link source toggles container */
+.katt-link-toggles {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Individual toggle labels */
+.katt-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-ui-small);
+}
+
+/* Monospace textarea for regex rules */
+.katt-rules-textarea {
+  font-family: var(--font-monospace);
+}
+
+/* ===== Confirmation Modal Styles ===== */
+
+/* Details block (pre) */
+.katt-confirm-details {
+  background: var(--background-secondary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: var(--font-ui-small);
+  max-height: 150px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Button container */
+.katt-confirm-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}

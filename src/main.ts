@@ -224,7 +224,7 @@ export default class KPlugin extends Plugin {
   }
 
   onunload() {
-    this.app.workspace.detachLeavesOfType(ATTACH_VIEW_TYPE);
+    // View cleanup is handled automatically by Obsidian
   }
 
   async saveSettings(): Promise<void> {
@@ -254,19 +254,19 @@ export default class KPlugin extends Plugin {
     }, 600);
   }
 
-  private async refreshOpenViews(force = false) {
+  private refreshOpenViews(force = false) {
     const leaves = this.app.workspace.getLeavesOfType(ATTACH_VIEW_TYPE);
     for (const leaf of leaves) {
       const view = leaf.view;
       if (view instanceof AttachView) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Fire-and-forget rescan
         view.rescan(force);
       }
     }
   }
 
   /** ===== DetectReport (inventory + backlinks + plan + preview/conflict) ===== */
-  async detectReport(force: boolean): Promise<DetectReport> {
+  detectReport(force: boolean): DetectReport {
     if (!force && !this.dirty && this.lastReport) return this.lastReport;
 
     this.dirty = false;
@@ -481,7 +481,7 @@ export default class KPlugin extends Plugin {
    * 4. Progress feedback - shows operation progress
    */
   async applyPlan(skipConfirm = false): Promise<void> {
-    const report = await this.detectReport(true);
+    const report = this.detectReport(true);
 
     const moves = report.preview
       .filter((p) => p.isPreview && p.virtualFrom)
@@ -1150,17 +1150,17 @@ export default class KPlugin extends Plugin {
   }
 
   private async loadSettings(): Promise<void> {
-    const loaded = await this.loadData();
+    const loaded = (await this.loadData()) as Record<string, unknown> | null;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
 
     // Migration: convert old zoneC string to extraScanFolders array
-    if (loaded && typeof (loaded as any).zoneC === "string" && (loaded as any).zoneC.trim()) {
-      const oldZoneC = (loaded as any).zoneC.trim();
+    if (loaded && typeof loaded.zoneC === "string" && (loaded.zoneC as string).trim()) {
+      const oldZoneC = (loaded.zoneC as string).trim();
       if (!this.settings.extraScanFolders.includes(oldZoneC)) {
         this.settings.extraScanFolders = [oldZoneC];
         this.settings.extraScanEnabled = true;
       }
-      delete (this.settings as any).zoneC;
+      delete (this.settings as Record<string, unknown>).zoneC;
       await this.saveData(this.settings);
     }
 
@@ -1189,7 +1189,7 @@ class KPluginSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Organizer Settings" });
+    new Setting(containerEl).setName("Organizer settings").setHeading();
 
     new Setting(containerEl)
       .setName("Workspace folder")
@@ -1302,7 +1302,7 @@ class KPluginSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl("h3", { text: "Link detection" });
+    new Setting(containerEl).setName("Link detection").setHeading();
 
     new Setting(containerEl)
       .setName("Backlink scope")
@@ -1313,7 +1313,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("whole-vault", "Whole vault")
           .setValue(this.plugin.settings.backlinkScope)
           .onChange(async (v) => {
-            this.plugin.settings.backlinkScope = v as any;
+            this.plugin.settings.backlinkScope = v as BacklinkScope;
             await this.plugin.saveSettings();
           })
       );
@@ -1324,11 +1324,9 @@ class KPluginSettingTab extends PluginSettingTab {
       .setDesc("Types of links to detect: [[links]], ![[embeds]], frontmatter links.");
     
     const toggleContainer = linkSourcesSetting.controlEl.createDiv({ cls: "katt-link-toggles" });
-    toggleContainer.style.cssText = "display: flex; gap: 12px; align-items: center;";
 
     // Links toggle with label
     const linksLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    linksLabel.style.cssText = "display: flex; align-items: center; gap: 4px; font-size: var(--font-ui-small);";
     const linksToggle = linksLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
     linksToggle.checked = this.plugin.settings.linkSources.links;
     linksToggle.classList.add("checkbox-container");
@@ -1340,7 +1338,6 @@ class KPluginSettingTab extends PluginSettingTab {
 
     // Embeds toggle with label
     const embedsLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    embedsLabel.style.cssText = "display: flex; align-items: center; gap: 4px; font-size: var(--font-ui-small);";
     const embedsToggle = embedsLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
     embedsToggle.checked = this.plugin.settings.linkSources.embeds;
     embedsLabel.createSpan({ text: "Embeds" });
@@ -1351,7 +1348,6 @@ class KPluginSettingTab extends PluginSettingTab {
 
     // Frontmatter toggle with label
     const fmLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    fmLabel.style.cssText = "display: flex; align-items: center; gap: 4px; font-size: var(--font-ui-small);";
     const fmToggle = fmLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
     fmToggle.checked = this.plugin.settings.linkSources.frontmatter;
     fmLabel.createSpan({ text: "Frontmatter" });
@@ -1360,7 +1356,7 @@ class KPluginSettingTab extends PluginSettingTab {
       await this.plugin.saveSettings();
     });
 
-    containerEl.createEl("h3", { text: "Placement policy" });
+    new Setting(containerEl).setName("Placement policy").setHeading();
 
     new Setting(containerEl)
       .setName("Placement mode")
@@ -1373,7 +1369,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("subfolder-under-note", "Subfolder under note")
           .setValue(this.plugin.settings.placement.mode)
           .onChange(async (v) => {
-            this.plugin.settings.placement.mode = v as any;
+            this.plugin.settings.placement.mode = v as PlacementMode;
             await this.plugin.saveSettings();
             this.display();
           })
@@ -1409,7 +1405,7 @@ class KPluginSettingTab extends PluginSettingTab {
         );
     }
 
-    containerEl.createEl("h3", { text: "Conflict handling" });
+    new Setting(containerEl).setName("Conflict handling").setHeading();
 
     new Setting(containerEl)
       .setName("Multi-backlink policy")
@@ -1421,7 +1417,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("pick-first", "Move to first note's folder")
           .setValue(this.plugin.settings.multiBacklinkPolicy)
           .onChange(async (v) => {
-            this.plugin.settings.multiBacklinkPolicy = v as any;
+            this.plugin.settings.multiBacklinkPolicy = v as MultiBacklinkPolicy;
             await this.plugin.saveSettings();
           })
       );
@@ -1436,7 +1432,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("on-even-explicit", "On (strict)")
           .setValue(this.plugin.settings.globalNameCheck)
           .onChange(async (v) => {
-            this.plugin.settings.globalNameCheck = v as any;
+            this.plugin.settings.globalNameCheck = v as GlobalNameCheck;
             await this.plugin.saveSettings();
           })
       );
@@ -1451,14 +1447,14 @@ class KPluginSettingTab extends PluginSettingTab {
         })
       );
 
-    containerEl.createEl("h3", { text: "Attachment detection" });
+    new Setting(containerEl).setName("Attachment detection").setHeading();
 
     new Setting(containerEl)
       .setName("Attachment rules")
       .setDesc("Regex patterns (one per line) to identify .md files as attachments. Files matching these are treated as attachments, not notes. Example: \\.excalidraw\\.md$ matches Excalidraw files.")
       .addTextArea((ta) => {
         ta.inputEl.rows = 4;
-        ta.inputEl.style.fontFamily = "var(--font-monospace)";
+        ta.inputEl.addClass("katt-rules-textarea");
         ta.setValue(this.plugin.settings.attachmentRulesText);
         ta.onChange(async (v) => {
           this.plugin.settings.attachmentRulesText = v;
@@ -1471,7 +1467,7 @@ class KPluginSettingTab extends PluginSettingTab {
       cls: "setting-item-description",
     });
 
-    containerEl.createEl("h3", { text: "View options" });
+    new Setting(containerEl).setName("View options").setHeading();
 
     new Setting(containerEl)
       .setName("Show stats")
@@ -1521,25 +1517,9 @@ class ConfirmModal extends Modal {
     if (this.details) {
       const detailsEl = contentEl.createEl("pre", { cls: "katt-confirm-details" });
       detailsEl.setText(this.details);
-      detailsEl.style.cssText = `
-        background: var(--background-secondary);
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: var(--font-ui-small);
-        max-height: 150px;
-        overflow: auto;
-        white-space: pre-wrap;
-        word-break: break-word;
-      `;
     }
 
     const buttonContainer = contentEl.createDiv({ cls: "katt-confirm-buttons" });
-    buttonContainer.style.cssText = `
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-top: 16px;
-    `;
 
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
     cancelBtn.addEventListener("click", () => {
