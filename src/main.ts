@@ -148,7 +148,7 @@ export default class KPlugin extends Plugin {
   private lastReport: DetectReport | null = null;
   private dirty = true;
 
-  private refreshTimer: number | null = null;
+  private refreshTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
 
   // compiled attachment regex rules
   private attachmentRules: RegExp[] = [];
@@ -253,8 +253,8 @@ export default class KPlugin extends Plugin {
 
   private markDirtyAndScheduleRefresh(force = false) {
     this.dirty = true;
-    if (this.refreshTimer) window.clearTimeout(this.refreshTimer);
-    this.refreshTimer = window.setTimeout(() => {
+    if (this.refreshTimer) globalThis.clearTimeout(this.refreshTimer);
+    this.refreshTimer = globalThis.setTimeout(() => {
       this.refreshTimer = null;
       void this.refreshOpenViews(force);
     }, 600);

@@ -79,7 +79,7 @@ export class AttachView extends ItemView {
     return "paperclip";
   }
 
-  onOpen(): Promise<void> {
+  async onOpen(): Promise<void> {
     this.injectStyle();
 
     this.contentEl.empty();
@@ -238,7 +238,6 @@ export class AttachView extends ItemView {
     this.elTreeWrap = nav.createDiv({ cls: "nav-files-container-node" });
 
     this.rescan(true);
-    return Promise.resolve();
   }
 
   onClose(): Promise<void> {
@@ -249,9 +248,9 @@ export class AttachView extends ItemView {
   public rescan(force = false): void {
     this.elTreeWrap.empty();
     this.elStats.setText("Scanning…");
-    const t0 = performance.now();
+    const t0 = globalThis.performance.now();
     this.report = this.plugin.detectReport(force);
-    const ms = performance.now() - t0;
+    const ms = globalThis.performance.now() - t0;
 
     const s = this.report.stats;
     this.elStats.setText(
