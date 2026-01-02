@@ -192,28 +192,28 @@ export default class KPlugin extends Plugin {
 
     this.addCommand({
       id: "open-organizer-view",
-      name: "Open Organizer",
-      callback: async () => this.activateView(),
+      name: "Open organizer",
+      callback: () => { void this.activateView(); },
     });
 
     this.addCommand({
       id: "organizer-rescan",
-      name: "Organizer: Rescan",
-      callback: async () => this.refreshOpenViews(true),
+      name: "Rescan attachments",
+      callback: () => { this.refreshOpenViews(true); },
     });
 
     this.addCommand({
       id: "organizer-apply-plan",
-      name: "Organizer: Apply plan",
-      callback: async () => this.applyPlan(),
+      name: "Apply organizer plan",
+      callback: () => { void this.applyPlan(); },
     });
 
     // Undo command - allows users to revert last batch operation
     // Reason: Batch moves are destructive; users need safety net
     this.addCommand({
       id: "organizer-undo",
-      name: "Organizer: Undo last operation",
-      callback: async () => this.undoLastOperation(),
+      name: "Undo last organizer operation",
+      callback: () => { void this.undoLastOperation(); },
     });
 
     // auto-dirty on vault changes (debounced)
@@ -259,7 +259,6 @@ export default class KPlugin extends Plugin {
     for (const leaf of leaves) {
       const view = leaf.view;
       if (view instanceof AttachView) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Fire-and-forget rescan
         view.rescan(force);
       }
     }
@@ -503,7 +502,7 @@ export default class KPlugin extends Plugin {
         if (conflicts > 0) {
           new Notice(
             `No planned moves.\n\n${conflicts} file(s) have conflicts (C) that block moving.\n` +
-            `Check "Global name check" setting or resolve duplicate filenames.`,
+            `Check "global name check" setting or resolve duplicate filenames.`,
             8000
           );
         } else if (kept > 0) {
@@ -521,7 +520,7 @@ export default class KPlugin extends Plugin {
     // Users should see what will happen before committing
     if (!skipConfirm) {
       const confirmed = await this.showConfirmDialog(
-        "Apply Organizer Plan",
+        "Apply organizer plan",
         `This will move ${moves.length} file(s).\n\nAre you sure?`,
         moves.slice(0, 5).map(m => `• ${m.from.split('/').pop()} → ${m.to}`).join('\n') +
         (moves.length > 5 ? `\n... and ${moves.length - 5} more` : '')
@@ -573,7 +572,7 @@ export default class KPlugin extends Plugin {
     if (fail > 0 && errors.length > 0) {
       new Notice(`Applied: ${ok} moved, ${fail} failed.\n${errors.slice(0, 3).join('\n')}`, 8000);
     } else {
-      new Notice(`✓ Applied: ${ok} file(s) moved successfully.${this.canUndo() ? ' (Undo available)' : ''}`);
+      new Notice(`✓ Applied: ${ok} file(s) moved successfully.${this.canUndo() ? ' (undo available)' : ''}`);
     }
     
     this.markDirtyAndScheduleRefresh(true);
@@ -590,7 +589,7 @@ export default class KPlugin extends Plugin {
     }
 
     const confirmed = await this.showConfirmDialog(
-      "Undo Last Operation",
+      "Undo last operation",
       `This will revert ${entry.moves.length} file move(s) from ${new Date(entry.timestamp).toLocaleTimeString()}.`,
       entry.moves.slice(0, 5).map(m => `• ${m.to.split('/').pop()} → ${m.from}`).join('\n') +
       (entry.moves.length > 5 ? `\n... and ${entry.moves.length - 5} more` : '')
@@ -1154,8 +1153,8 @@ export default class KPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
 
     // Migration: convert old zoneC string to extraScanFolders array
-    if (loaded && typeof loaded.zoneC === "string" && (loaded.zoneC as string).trim()) {
-      const oldZoneC = (loaded.zoneC as string).trim();
+    if (loaded && typeof loaded.zoneC === "string" && loaded.zoneC.trim()) {
+      const oldZoneC = loaded.zoneC.trim();
       if (!this.settings.extraScanFolders.includes(oldZoneC)) {
         this.settings.extraScanFolders = [oldZoneC];
         this.settings.extraScanEnabled = true;
@@ -1189,7 +1188,7 @@ class KPluginSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName("Organizer settings").setHeading();
+    new Setting(containerEl).setName("Folders").setHeading();
 
     new Setting(containerEl)
       .setName("Workspace folder")
@@ -1218,7 +1217,7 @@ class KPluginSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Enable Extra Scan")
+      .setName("Enable extra scan")
       .setDesc("Scan files outside Workspace and Staging to find referenced attachments.")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.extraScanEnabled).onChange(async (v) => {
@@ -1236,7 +1235,7 @@ class KPluginSettingTab extends PluginSettingTab {
       
       // Show info about empty = whole vault
       new Setting(foldersContainer)
-        .setName("Extra Scan folders")
+        .setName("Extra scan folders")
         .setDesc("Add specific folders to scan. Leave all empty to scan whole vault.");
 
       // Render existing folders
@@ -1313,7 +1312,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("whole-vault", "Whole vault")
           .setValue(this.plugin.settings.backlinkScope)
           .onChange(async (v) => {
-            this.plugin.settings.backlinkScope = v as BacklinkScope;
+            this.plugin.settings.backlinkScope = v as "zoneA-only" | "whole-vault";
             await this.plugin.saveSettings();
           })
       );
@@ -1327,7 +1326,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     // Links toggle with label
     const linksLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    const linksToggle = linksLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
+    const linksToggle = linksLabel.createEl<"input">("input", { type: "checkbox" });
     linksToggle.checked = this.plugin.settings.linkSources.links;
     linksToggle.classList.add("checkbox-container");
     linksLabel.createSpan({ text: "Links" });
@@ -1338,7 +1337,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     // Embeds toggle with label
     const embedsLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    const embedsToggle = embedsLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
+    const embedsToggle = embedsLabel.createEl<"input">("input", { type: "checkbox" });
     embedsToggle.checked = this.plugin.settings.linkSources.embeds;
     embedsLabel.createSpan({ text: "Embeds" });
     embedsToggle.addEventListener("change", async () => {
@@ -1348,7 +1347,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     // Frontmatter toggle with label
     const fmLabel = toggleContainer.createEl("label", { cls: "katt-toggle-label" });
-    const fmToggle = fmLabel.createEl("input", { type: "checkbox" }) as HTMLInputElement;
+    const fmToggle = fmLabel.createEl<"input">("input", { type: "checkbox" });
     fmToggle.checked = this.plugin.settings.linkSources.frontmatter;
     fmLabel.createSpan({ text: "Frontmatter" });
     fmToggle.addEventListener("change", async () => {
@@ -1369,7 +1368,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("subfolder-under-note", "Subfolder under note")
           .setValue(this.plugin.settings.placement.mode)
           .onChange(async (v) => {
-            this.plugin.settings.placement.mode = v as PlacementMode;
+            this.plugin.settings.placement.mode = v as "vault-folder" | "specified-folder" | "same-folder-as-note" | "subfolder-under-note";
             await this.plugin.saveSettings();
             this.display();
           })
@@ -1417,7 +1416,7 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("pick-first", "Move to first note's folder")
           .setValue(this.plugin.settings.multiBacklinkPolicy)
           .onChange(async (v) => {
-            this.plugin.settings.multiBacklinkPolicy = v as MultiBacklinkPolicy;
+            this.plugin.settings.multiBacklinkPolicy = v as "unchanged" | "lca" | "pick-first";
             await this.plugin.saveSettings();
           })
       );
@@ -1432,13 +1431,13 @@ class KPluginSettingTab extends PluginSettingTab {
           .addOption("on-even-explicit", "On (strict)")
           .setValue(this.plugin.settings.globalNameCheck)
           .onChange(async (v) => {
-            this.plugin.settings.globalNameCheck = v as GlobalNameCheck;
+            this.plugin.settings.globalNameCheck = v as "off" | "on-ignore-explicit" | "on-even-explicit";
             await this.plugin.saveSettings();
           })
       );
 
     new Setting(containerEl)
-      .setName("Plan External attachments")
+      .setName("Plan external attachments")
       .setDesc("Include referenced files outside Workspace/Staging in the plan.")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.planOutAttachments).onChange(async (v) => {

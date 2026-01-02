@@ -136,20 +136,20 @@ export class AttachView extends ItemView {
     mkIconToggle("eye", "Preview mode", () => this.previewMode, (v) => (this.previewMode = v));
     mkIconToggle("arrow-right", "Show action paths", () => this.showActions, (v) => (this.showActions = v));
 
-    const collapseBtn = mkIconBtn("chevrons-down-up", "Collapse/Expand all", () => {
+    const collapseBtn = mkIconBtn("chevrons-down-up", "Collapse/expand all", () => {
       this.toggleCollapseAll();
     });
     this.updateCollapseIcon(collapseBtn);
 
     mkIconBtn("check-circle", "Apply plan", async () => {
       await this.plugin.applyPlan();
-      await this.rescan(true);
+      this.rescan(true);
     });
 
     mkIconBtn("undo", "Undo last operation", async () => {
       if (this.plugin.undoLastOperation) {
         await this.plugin.undoLastOperation();
-        await this.rescan(true);
+        this.rescan(true);
       }
     });
 
@@ -195,7 +195,7 @@ export class AttachView extends ItemView {
     const marks: Array<{ mark: Mark; label: string }> = [
       { mark: "-", label: "Notes" },
       { mark: "K", label: "Kept" },
-      { mark: "B", label: "To Bin" },
+      { mark: "B", label: "To bin" },
       { mark: "R", label: "Relocate" },
       { mark: "M", label: "Missing" },
       { mark: "C", label: "Conflict" },
@@ -238,11 +238,11 @@ export class AttachView extends ItemView {
     const nav = this.contentEl.createDiv({ cls: "nav-files-container katt-tree" });
     this.elTreeWrap = nav.createDiv({ cls: "nav-files-container-node" });
 
-    await this.rescan(true);
+    this.rescan(true);
   }
 
   async onClose(): Promise<void> {
-    this.contentEl.removeClass("katt-attach-view");
+    // Cleanup handled by Obsidian
   }
 
   public rescan(force = false): void {
