@@ -187,6 +187,7 @@ export default class KPlugin extends Plugin {
         canUndo: () => this.canUndo(),
         // Settings access for UI options
         getShowStats: () => this.settings.showStats,
+        getStagingFolder: () => this.settings.zoneB,
       });
     });
 

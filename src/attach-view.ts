@@ -13,6 +13,7 @@ type Provider = {
   canUndo?: () => boolean;
   // Settings access
   getShowStats?: () => boolean;
+  getStagingFolder?: () => string;
 };
 
 type TreeNode =
@@ -536,7 +537,8 @@ export class AttachView extends ItemView {
         targetPath = (e.action as { target: string }).target;
       } else if (e.action.type === "moveToB") {
         const fileName = e.path.split("/").pop() ?? e.path;
-        targetPath = `Zone B/${fileName}`;
+        const stagingFolder = this.plugin.getStagingFolder?.() || "Staging";
+        targetPath = stagingFolder ? `${stagingFolder}/${fileName}` : fileName;
       }
 
       if (targetPath) {
@@ -560,7 +562,9 @@ export class AttachView extends ItemView {
     } else if (mark === "B" && e.action.type === "moveToB") {
       const action = e.action as { reason?: string };
       const fileName = e.path.split("/").pop() ?? e.path;
-      flair.title = `Orphan → Zone B/${fileName}${action.reason ? `\nReason: ${action.reason}` : ""}`;
+      const stagingFolder = this.plugin.getStagingFolder?.() || "Staging";
+      const targetPath = stagingFolder ? `${stagingFolder}/${fileName}` : fileName;
+      flair.title = `Orphan → ${targetPath}${action.reason ? `\nReason: ${action.reason}` : ""}`;
     } else if (mark === "M") {
       flair.title = "Missing file - referenced but not found";
     } else if (mark === "K") {
