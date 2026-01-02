@@ -4,9 +4,18 @@
  */
 
 /* Header */
-.katt-attach-view .katt-header {
-  padding: 6px 8px 4px;
-  gap: 6px;
+/* Force our header layout to be vertical, theme-proof */
+.katt-attach-view .katt-header{
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* Each row takes full width */
+.katt-attach-view .katt-actions,
+.katt-attach-view .katt-search-row,
+.katt-attach-view .katt-mark-filter-panel{
+  width: 100%;
 }
 
 /* Stats row */
@@ -191,7 +200,55 @@
 }
 
 /* Active toggle button */
-.katt-attach-view .nav-action-button.is-active,
 .katt-attach-view .katt-filter-toggle.is-active {
   color: var(--interactive-accent);
+}
+
+/* ===== Theme-proof button sizing (only inside this view) ===== */
+.katt-attach-view {
+  --katt-btn: 28px;
+  --katt-radius: 6px;
+  --katt-icon: 18px;
+}
+
+/* filter toggle button */
+.katt-attach-view .katt-filter-toggle {
+  width: var(--katt-btn);
+  height: var(--katt-btn);
+  min-width: var(--katt-btn);
+  min-height: var(--katt-btn);
+  padding: 0;
+  border-radius: var(--katt-radius);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--katt-btn);
+  --icon-size: var(--katt-icon);
+}
+
+/* mark buttons: segmented style */
+.katt-attach-view .katt-mark-btn {
+  width: var(--katt-btn);
+  height: var(--katt-btn);
+  min-width: var(--katt-btn);
+  min-height: var(--katt-btn);
+  padding: 0;
+  border-radius: var(--katt-radius);
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+}
+
+/* hover/active */
+.katt-attach-view .katt-mark-btn:hover{
+  background: var(--background-modifier-hover);
+}
+.katt-attach-view .katt-mark-btn.is-active{
+  background: var(--background-modifier-active-hover);
+  color: var(--text-accent);
 }

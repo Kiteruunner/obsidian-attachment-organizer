@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-attachment-organizer",
-	"version": "0.0.1",
+	"version": "1.0.1",
 	"description": "Obsidian plugin to automatically organize attachments into zone-based folders",
 	"main": "main.js",
 	"scripts": {

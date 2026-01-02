@@ -84,10 +84,12 @@ export class AttachView extends ItemView {
     this.contentEl.empty();
     this.contentEl.addClass("katt-attach-view");
 
-    this.elHeader = this.contentEl.createDiv({ cls: "nav-header katt-header" });
+    // Nav header with only top row icon buttons
+    const navHeader = this.contentEl.createDiv({ cls: "nav-header" });
+    const actions = navHeader.createDiv({ cls: "nav-buttons-container katt-actions" });
 
-    // Row 1: actions (native Obsidian nav-buttons-container style)
-    const actions = this.elHeader.createDiv({ cls: "nav-buttons-container katt-actions" });
+    // Custom header area for search/filter (outside nav-header)
+    this.elHeader = this.contentEl.createDiv({ cls: "katt-header" });
 
     const mkIconBtn = (icon: string, label: string, onClick: () => void) => {
       const btn = actions.createDiv({ cls: "clickable-icon nav-action-button" });
@@ -151,7 +153,7 @@ export class AttachView extends ItemView {
       }
     });
 
-    // Row 2: Search row with filter input + settings toggle
+    // Search row with filter input + settings toggle (in katt-header, not nav-header)
     const searchRow = this.elHeader.createDiv({ cls: "search-row katt-search-row" });
 
     const filterWrap = searchRow.createDiv({ cls: "search-input-container katt-filter" });
@@ -167,7 +169,7 @@ export class AttachView extends ItemView {
 
     // Filter settings toggle button
     const filterToggleBtn = searchRow.createDiv({
-      cls: "clickable-icon nav-action-button katt-filter-toggle",
+      cls: "clickable-icon katt-filter-toggle",
     });
     filterToggleBtn.setAttr("aria-label", "Filter options");
     filterToggleBtn.setAttr("data-tooltip-delay", "300");
@@ -182,7 +184,7 @@ export class AttachView extends ItemView {
       this.elMarkFilterPanel.style.display = this.showMarkFilter ? "" : "none";
     });
 
-    // Row 3: Collapsible mark filter panel
+    // Collapsible mark filter panel
     this.elMarkFilterPanel = this.elHeader.createDiv({ cls: "katt-mark-filter-panel" });
     this.elMarkFilterPanel.style.display = this.showMarkFilter ? "" : "none";
 
@@ -201,7 +203,7 @@ export class AttachView extends ItemView {
 
     for (const { mark, label } of marks) {
       const btn = markFilterWrap.createDiv({
-        cls: `clickable-icon nav-action-button katt-mark-btn katt-mark-${
+        cls: `clickable-icon katt-mark-btn katt-mark-${
           mark === "-" ? "dash" : mark.toLowerCase()
         }`,
       });
