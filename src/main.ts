@@ -238,7 +238,7 @@ export default class KPlugin extends Plugin {
     // Check if view already exists
     const existing = this.app.workspace.getLeavesOfType(ATTACH_VIEW_TYPE);
     if (existing.length > 0) {
-      this.app.workspace.revealLeaf(existing[0]);
+      await this.app.workspace.revealLeaf(existing[0]);
       return;
     }
 
@@ -248,7 +248,7 @@ export default class KPlugin extends Plugin {
     await leaf.setViewState({ type: ATTACH_VIEW_TYPE, active: true });
 
     const opened = this.app.workspace.getLeavesOfType(ATTACH_VIEW_TYPE)[0];
-    if (opened) this.app.workspace.revealLeaf(opened);
+    if (opened) await this.app.workspace.revealLeaf(opened);
   }
 
   private markDirtyAndScheduleRefresh(force = false) {
@@ -1333,9 +1333,9 @@ class KPluginSettingTab extends PluginSettingTab {
     linksToggle.checked = this.plugin.settings.linkSources.links;
     linksToggle.classList.add("checkbox-container");
     linksLabel.createSpan({ text: "Links" });
-    linksToggle.addEventListener("change", async () => {
+    linksToggle.addEventListener("change", () => {
       this.plugin.settings.linkSources.links = linksToggle.checked;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
 
     // Embeds toggle with label
@@ -1343,9 +1343,9 @@ class KPluginSettingTab extends PluginSettingTab {
     const embedsToggle = embedsLabel.createEl<"input">("input", { type: "checkbox" });
     embedsToggle.checked = this.plugin.settings.linkSources.embeds;
     embedsLabel.createSpan({ text: "Embeds" });
-    embedsToggle.addEventListener("change", async () => {
+    embedsToggle.addEventListener("change", () => {
       this.plugin.settings.linkSources.embeds = embedsToggle.checked;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
 
     // Frontmatter toggle with label
@@ -1353,9 +1353,9 @@ class KPluginSettingTab extends PluginSettingTab {
     const fmToggle = fmLabel.createEl<"input">("input", { type: "checkbox" });
     fmToggle.checked = this.plugin.settings.linkSources.frontmatter;
     fmLabel.createSpan({ text: "Frontmatter" });
-    fmToggle.addEventListener("change", async () => {
+    fmToggle.addEventListener("change", () => {
       this.plugin.settings.linkSources.frontmatter = fmToggle.checked;
-      await this.plugin.saveSettings();
+      void this.plugin.saveSettings();
     });
 
     new Setting(containerEl).setName("Placement policy").setHeading();

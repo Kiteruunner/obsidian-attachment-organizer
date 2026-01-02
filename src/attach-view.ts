@@ -79,7 +79,7 @@ export class AttachView extends ItemView {
     return "paperclip";
   }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     this.injectStyle();
 
     this.contentEl.empty();
@@ -142,15 +142,13 @@ export class AttachView extends ItemView {
     });
     this.updateCollapseIcon(collapseBtn);
 
-    mkIconBtn("check-circle", "Apply plan", async () => {
-      await this.plugin.applyPlan();
-      this.rescan(true);
+    mkIconBtn("check-circle", "Apply plan", () => {
+      void this.plugin.applyPlan().then(() => this.rescan(true));
     });
 
-    mkIconBtn("undo", "Undo last operation", async () => {
+    mkIconBtn("undo", "Undo last operation", () => {
       if (this.plugin.undoLastOperation) {
-        await this.plugin.undoLastOperation();
-        this.rescan(true);
+        void this.plugin.undoLastOperation().then(() => this.rescan(true));
       }
     });
 
@@ -240,6 +238,7 @@ export class AttachView extends ItemView {
     this.elTreeWrap = nav.createDiv({ cls: "nav-files-container-node" });
 
     this.rescan(true);
+    return Promise.resolve();
   }
 
   onClose(): Promise<void> {
