@@ -6,6 +6,6 @@
 	"description": "Automatically organize attachments into zone-based folders with conflict detection and batch operations",
 	"author": "Kirun",
 	"authorUrl": "https://github.com/Kiteruunner",
-	"isDesktopOnly": false,
+	"isDesktopOnly": true,
 	"main": "main.js"
 }
