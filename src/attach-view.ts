@@ -242,8 +242,9 @@ export class AttachView extends ItemView {
     this.rescan(true);
   }
 
-  async onClose(): Promise<void> {
+  onClose(): Promise<void> {
     // Cleanup handled by Obsidian
+    return Promise.resolve();
   }
 
   public rescan(force = false): void {

@@ -235,7 +235,12 @@ export default class KPlugin extends Plugin {
   }
 
   private async activateView(): Promise<void> {
-    this.app.workspace.detachLeavesOfType(ATTACH_VIEW_TYPE);
+    // Check if view already exists
+    const existing = this.app.workspace.getLeavesOfType(ATTACH_VIEW_TYPE);
+    if (existing.length > 0) {
+      this.app.workspace.revealLeaf(existing[0]);
+      return;
+    }
 
     const leaf = this.app.workspace.getRightLeaf(false) ?? this.app.workspace.getLeaf(false);
     if (!leaf) return;
@@ -372,8 +377,9 @@ export default class KPlugin extends Plugin {
           }
         } else {
           const key = explicitDesired ? explicitDesired : cleanedFilePart;
-          if (!missingKeys.has(key)) missingKeys.set(key, []);
-          missingKeys.get(key)!.push(bl);
+          const arr = missingKeys.get(key) ?? [];
+          arr.push(bl);
+          missingKeys.set(key, arr);
         }
       }
     }
@@ -484,8 +490,8 @@ export default class KPlugin extends Plugin {
     const report = this.detectReport(true);
 
     const moves = report.preview
-      .filter((p) => p.isPreview && p.virtualFrom)
-      .map((p) => ({ from: normalizePath(p.virtualFrom!), to: normalizePath(p.path) }));
+      .filter((p): p is typeof p & { virtualFrom: string } => p.isPreview === true && typeof p.virtualFrom === 'string')
+      .map((p) => ({ from: normalizePath(p.virtualFrom), to: normalizePath(p.path) }));
 
     if (moves.length === 0) {
       // Better feedback: explain WHY there are no moves
@@ -927,12 +933,8 @@ export default class KPlugin extends Plugin {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    // ensure built-in defaults always exist (never lose excalidraw)
-    const merged = new Set<string>(DEFAULT_ATTACHMENT_RULES.split("\n").map((s) => s.trim()));
-    for (const l of lines) merged.add(l);
-
     const compiled: RegExp[] = [];
-    for (const rule of merged) {
+    for (const rule of lines) {
       try {
         compiled.push(new RegExp(rule, "i"));
       } catch {
@@ -1193,10 +1195,10 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Workspace folder")
-      .setDesc("Root folder to organize (empty = vault root).")
+      .setDesc("Root folder to organize (empty = vault root)")
       .addText((t) =>
         t
-          .setPlaceholder("e.g. SETs")
+          .setPlaceholder("Workspace")
           .setValue(this.plugin.settings.zoneA)
           .onChange(async (v) => {
             this.plugin.settings.zoneA = v.trim();
@@ -1206,10 +1208,10 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Staging folder")
-      .setDesc("Cleanup / bin folder for orphan attachments.")
+      .setDesc("Cleanup/bin folder for orphan attachments")
       .addText((t) =>
         t
-          .setPlaceholder("e.g. Draft")
+          .setPlaceholder("/path/to/draft")
           .setValue(this.plugin.settings.zoneB)
           .onChange(async (v) => {
             this.plugin.settings.zoneB = v.trim();
@@ -1219,7 +1221,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Enable extra scan")
-      .setDesc("Scan files outside Workspace and Staging to find referenced attachments.")
+      .setDesc("Scan files outside workspace and staging to find referenced attachments")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.extraScanEnabled).onChange(async (v) => {
           this.plugin.settings.extraScanEnabled = v;
@@ -1237,14 +1239,14 @@ class KPluginSettingTab extends PluginSettingTab {
       // Show info about empty = whole vault
       new Setting(foldersContainer)
         .setName("Extra scan folders")
-        .setDesc("Add specific folders to scan. Leave all empty to scan whole vault.");
+        .setDesc("Add specific folders to scan, or leave empty to scan entire vault");
 
       // Render existing folders
       for (let i = 0; i < folders.length; i++) {
         const folderSetting = new Setting(foldersContainer)
           .addText((t) =>
             t
-              .setPlaceholder("folder path")
+              .setPlaceholder("/path/to/folder")
               .setValue(folders[i])
               .onChange(async (v) => {
                 this.plugin.settings.extraScanFolders[i] = v.trim();
@@ -1268,7 +1270,7 @@ class KPluginSettingTab extends PluginSettingTab {
       new Setting(foldersContainer)
         .addButton((btn) =>
           btn
-            .setButtonText("+ Add folder")
+            .setButtonText("Add folder")
             .setCta()
             .onClick(async () => {
               this.plugin.settings.extraScanFolders.push("");
@@ -1281,12 +1283,12 @@ class KPluginSettingTab extends PluginSettingTab {
       const activeCount = folders.filter((f) => f.trim()).length;
       if (activeCount === 0) {
         foldersContainer.createEl("p", {
-          text: "📁 Currently scanning: Whole vault (outside Workspace/Staging)",
+          text: "Currently scanning: whole vault (outside workspace/staging areas)",
           cls: "setting-item-description",
         });
       } else {
         foldersContainer.createEl("p", {
-          text: `📁 Currently scanning: ${activeCount} specific folder(s)`,
+          text: `Currently scanning: ${activeCount} specific folder(s)`,
           cls: "setting-item-description",
         });
       }
@@ -1294,7 +1296,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Recursive scan")
-      .setDesc("Include subfolders when scanning.")
+      .setDesc("Include subfolders when scanning")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.recursive).onChange(async (v) => {
           this.plugin.settings.recursive = v;
@@ -1306,7 +1308,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Backlink scope")
-      .setDesc("Which notes to analyze for attachment references.")
+      .setDesc("Which notes to analyze for attachment references")
       .addDropdown((dd) =>
         dd
           .addOption("zoneA-only", "Workspace only")
@@ -1321,7 +1323,7 @@ class KPluginSettingTab extends PluginSettingTab {
     // Link sources with labeled toggles
     const linkSourcesSetting = new Setting(containerEl)
       .setName("Link sources")
-      .setDesc("Types of links to detect: [[links]], ![[embeds]], frontmatter links.");
+      .setDesc("Types of links to detect: [[links]], ![[embeds]], frontmatter links");
     
     const toggleContainer = linkSourcesSetting.controlEl.createDiv({ cls: "katt-link-toggles" });
 
@@ -1360,7 +1362,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Placement mode")
-      .setDesc("Where to move attachments when organizing.")
+      .setDesc("Where to move attachments when organizing")
       .addDropdown((dd) =>
         dd
           .addOption("vault-folder", "Vault root")
@@ -1378,10 +1380,10 @@ class KPluginSettingTab extends PluginSettingTab {
     if (this.plugin.settings.placement.mode === "specified-folder") {
       new Setting(containerEl)
         .setName("Specified folder")
-        .setDesc("All attachments will be moved to this folder.")
+        .setDesc("All attachments will be moved to this folder")
         .addText((t) =>
           t
-            .setPlaceholder("e.g. attachments")
+            .setPlaceholder("/attachments")
             .setValue(this.plugin.settings.placement.specifiedFolder)
             .onChange(async (v) => {
               this.plugin.settings.placement.specifiedFolder = v.trim();
@@ -1393,10 +1395,10 @@ class KPluginSettingTab extends PluginSettingTab {
     if (this.plugin.settings.placement.mode === "subfolder-under-note") {
       new Setting(containerEl)
         .setName("Subfolder name")
-        .setDesc("Attachments go to note-folder/[subfolder-name]/.")
+        .setDesc("Attachments go to note-folder/[subfolder-name]/")
         .addText((t) =>
           t
-            .setPlaceholder("attachments")
+            .setPlaceholder("/attachments")
             .setValue(this.plugin.settings.placement.subfolderName)
             .onChange(async (v) => {
               this.plugin.settings.placement.subfolderName = v.trim();
@@ -1409,7 +1411,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Multi-backlink policy")
-      .setDesc("How to handle attachments referenced by multiple notes.")
+      .setDesc("How to handle attachments referenced by multiple notes")
       .addDropdown((dd) =>
         dd
           .addOption("unchanged", "Keep in place")
@@ -1424,7 +1426,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Global name check")
-      .setDesc("Prevent moves that would create duplicate filenames in vault.")
+      .setDesc("Prevent moves that would create duplicate filenames in vault")
       .addDropdown((dd) =>
         dd
           .addOption("off", "Off")
@@ -1439,7 +1441,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Plan external attachments")
-      .setDesc("Include referenced files outside Workspace/Staging in the plan.")
+      .setDesc("Include referenced files outside workspace/staging in the plan")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.planOutAttachments).onChange(async (v) => {
           this.plugin.settings.planOutAttachments = v;
@@ -1451,7 +1453,7 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Attachment rules")
-      .setDesc("Regex patterns (one per line) to identify .md files as attachments. Files matching these are treated as attachments, not notes. Example: \\.excalidraw\\.md$ matches Excalidraw files.")
+      .setDesc("Regex patterns (one per line) to identify .md files as attachments. Files matching these are treated as attachments, not notes. Example: \\.excalidraw\\.md$ matches Excalidraw files")
       .addTextArea((ta) => {
         ta.inputEl.rows = 4;
         ta.inputEl.addClass("katt-rules-textarea");
@@ -1461,17 +1463,12 @@ class KPluginSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         });
       });
-    
-    containerEl.createEl("p", {
-      text: "Built-in: .excalidraw.md, .canvas.md are always treated as attachments.",
-      cls: "setting-item-description",
-    });
 
-    new Setting(containerEl).setName("View options").setHeading();
+    new Setting(containerEl).setName("View").setHeading();
 
     new Setting(containerEl)
       .setName("Show stats")
-      .setDesc("Display scan statistics (notes, attachments, conflicts, etc.) in the Organizer view. Reopen the view for changes to take effect.")
+      .setDesc("Display scan statistics (notes, attachments, conflicts) in the organizer view. Reopen the view for changes to take effect")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.showStats).onChange(async (v) => {
           this.plugin.settings.showStats = v;
