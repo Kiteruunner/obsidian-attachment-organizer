@@ -397,11 +397,20 @@ export default class KPlugin extends Plugin {
       });
     }
 
-    /** Step 3: plan actions (attachments only; skip zoneB; OUT optional) */
+    /** Step 3: plan actions (attachments only; OUT optional) */
     for (const e of map.values()) {
       if (!this.isAttachmentKind(e.kind)) continue;
       if (e.tags.includes("missing")) continue;
-      if (e.zone === "B") continue;
+
+      // Zone B: only plan if referenced (move out); otherwise keep in staging
+      if (e.zone === "B") {
+        if (e.referencedByNotes.length === 0) {
+          e.action = { type: "keep" };
+          continue;
+        }
+        // Has references → fall through to normal planning
+      }
+
       if (e.zone === "OUT" && !this.settings.planOutAttachments) {
         e.action = { type: "keep" };
         continue;

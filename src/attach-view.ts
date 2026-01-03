@@ -79,7 +79,7 @@ export class AttachView extends ItemView {
     return "paperclip";
   }
 
-  async onOpen(): Promise<void> {
+  onOpen(): Promise<void> {
     this.injectStyle();
 
     this.contentEl.empty();
@@ -238,6 +238,7 @@ export class AttachView extends ItemView {
     this.elTreeWrap = nav.createDiv({ cls: "nav-files-container-node" });
 
     this.rescan(true);
+    return Promise.resolve();
   }
 
   onClose(): Promise<void> {
