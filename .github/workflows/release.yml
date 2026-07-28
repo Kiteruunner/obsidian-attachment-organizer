@@ -7,23 +7,24 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Existing release tag to build and publish
+        description: Version to tag, build, and publish
         required: true
-        default: "1.0.2"
+        default: "1.0.3"
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      id-token: write
     env:
       RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 
     steps:
-      - name: Check out release tag
+      - name: Check out release source
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.repository.default_branch || github.ref }}
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -32,21 +33,33 @@ jobs:
           node-version: "20.x"
           cache: npm
 
+      - name: Verify version and create tag when needed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node -e 'const manifest = require("./manifest.json"); if (manifest.version !== process.env.RELEASE_VERSION) { console.error(`Release ${process.env.RELEASE_VERSION} does not match manifest version ${manifest.version}`); process.exit(1); }'
+          if ! git rev-parse --verify "refs/tags/$RELEASE_VERSION" >/dev/null 2>&1; then
+            if [ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]; then
+              echo "Missing release tag $RELEASE_VERSION"
+              exit 1
+            fi
+            git tag "$RELEASE_VERSION"
+            git push origin "$RELEASE_VERSION"
+          fi
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build plugin
         run: npm run build
 
-      - name: Verify release metadata and assets
+      - name: Verify release assets
         run: |
-          node -e 'const manifest = require("./manifest.json"); if (manifest.version !== process.env.RELEASE_VERSION) { console.error(`Release ${process.env.RELEASE_VERSION} does not match manifest version ${manifest.version}`); process.exit(1); }'
-          git rev-parse --verify "refs/tags/$RELEASE_VERSION"
           test -f main.js
           test -f manifest.json
           test -f styles.css
 
-      - name: Create draft GitHub release
+      - name: Create public GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,7 +70,14 @@ jobs:
 
           gh release create "$RELEASE_VERSION" \
             --verify-tag \
-            --draft \
             --title "$RELEASE_VERSION" \
             --generate-notes \
             main.js manifest.json styles.css
+
+      - name: Attest release assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
