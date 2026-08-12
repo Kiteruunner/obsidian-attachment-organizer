@@ -1,4 +1,4 @@
-# Attachment Organize
+# Attachment Organizer
 
 Plan, preview, and safely organize Obsidian attachments around the notes that use them.
 
