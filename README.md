@@ -6,7 +6,8 @@ Attachment Organizer scans configurable areas of your vault, explains what shoul
 
 ## Preview
 
-![Attachment Organizer preview](docs/attachment-organizer-preview.png)
+<img height="500" alt="image" src="https://github.com/user-attachments/assets/03a0f468-9ee2-461d-b6f3-4f4057997863" />
+
 
 The Organizer gives every item a compact status:
 
