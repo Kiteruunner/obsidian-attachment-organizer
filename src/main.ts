@@ -11,16 +11,17 @@ import {
 } from "obsidian";
 import { AttachView, ATTACH_VIEW_TYPE } from "./attach-view";
 
-/** ===== Undo History =====
- * Reason: Users need ability to undo accidental batch moves.
- * Stores last N operations for potential rollback.
- */
+
 type UndoEntry = {
   timestamp: number;
   moves: { from: string; to: string }[];
 };
 
 const MAX_UNDO_HISTORY = 10;
+const ORGANIZER_MARKS: OrganizerMark[] = ["-", "K", "B", "R", "M", "C"];
+const EXCALIDRAW_SEARCH_FILTER = "-file:.excalidraw.md";
+const GLOBAL_SEARCH_INPUT_SELECTOR =
+  '.workspace-leaf-content[data-type="search"] .search-input-container input[type="search"]';
 
 /** ===== Model (final) ===== */
 export type FileKind = "note-md" | "attachment-file" | "attachment-md" | "unknown";
@@ -80,6 +81,7 @@ type BacklinkScope = "zoneA-only" | "whole-vault";
 type GlobalNameCheck = "off" | "on-ignore-explicit" | "on-even-explicit";
 type MultiBacklinkPolicy = "unchanged" | "lca" | "pick-first";
 type LinkSources = { links: boolean; embeds: boolean; frontmatter: boolean };
+type OrganizerMark = "-" | "K" | "B" | "R" | "M" | "C";
 
 type PlacementMode =
   | "vault-folder"
@@ -112,6 +114,8 @@ type Settings = {
 
   // UI settings
   showStats: boolean; // show stats in organizer view
+  visibleMarks: OrganizerMark[];
+  excludeExcalidrawFromGlobalSearch: boolean;
 };
 
 const DEFAULT_ATTACHMENT_RULES = ["\\.excalidraw\\.md$", "\\.canvas\\.md$"].join("\n");
@@ -140,6 +144,8 @@ const DEFAULT_SETTINGS: Settings = {
   planOutAttachments: false,
 
   showStats: false,
+  visibleMarks: ["-", "K", "B", "R", "M", "C"],
+  excludeExcalidrawFromGlobalSearch: false,
 };
 
 export default class KPlugin extends Plugin {
@@ -156,6 +162,9 @@ export default class KPlugin extends Plugin {
   // Undo history - stores recent move operations for rollback
   // Reason: Users may accidentally apply plan; this allows recovery
   private undoHistory: UndoEntry[] = [];
+
+  private managedGlobalSearchInputs = new WeakSet<HTMLInputElement>();
+  private suppressGlobalSearchFilter = false;
 
   /** Get the last undo entry (for UI display) */
   getLastUndo(): UndoEntry | null {
@@ -188,6 +197,11 @@ export default class KPlugin extends Plugin {
         // Settings access for UI options
         getShowStats: () => this.settings.showStats,
         getStagingFolder: () => this.settings.zoneB,
+        getVisibleMarks: () => this.settings.visibleMarks,
+        setVisibleMarks: async (marks: OrganizerMark[]) => {
+          this.settings.visibleMarks = ORGANIZER_MARKS.filter((mark) => marks.includes(mark));
+          await this.saveData(this.settings);
+        },
       });
     });
 
@@ -222,16 +236,90 @@ export default class KPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("delete", () => this.markDirtyAndScheduleRefresh()));
     this.registerEvent(this.app.vault.on("rename", () => this.markDirtyAndScheduleRefresh()));
     this.registerEvent(this.app.vault.on("modify", () => this.markDirtyAndScheduleRefresh()));
+
+    this.setupGlobalSearchFilter();
   }
 
   onunload() {
-    // View cleanup is handled automatically by Obsidian
+    this.suppressGlobalSearchFilter = true;
+    this.removeManagedGlobalSearchFilters();
   }
 
   async saveSettings(): Promise<void> {
+    this.syncOpenViewSettings();
     await this.saveData(this.settings);
     this.compileAttachmentRules();
     this.markDirtyAndScheduleRefresh(true);
+    if (!this.settings.excludeExcalidrawFromGlobalSearch) {
+      this.removeManagedGlobalSearchFilters();
+    }
+  }
+
+  private setupGlobalSearchFilter(): void {
+    this.registerDomEvent(
+      globalThis.document,
+      "input",
+      (event) => {
+        if (!(event.target instanceof HTMLInputElement)) return;
+        if (!event.target.matches(GLOBAL_SEARCH_INPUT_SELECTOR)) return;
+        if (!this.hasExcalidrawSearchFilter(event.target.value)) {
+          this.managedGlobalSearchInputs.delete(event.target);
+        }
+      },
+      true
+    );
+
+    this.registerDomEvent(
+      globalThis.document,
+      "focusin",
+      (event) => {
+        if (this.suppressGlobalSearchFilter) return;
+        if (!this.settings.excludeExcalidrawFromGlobalSearch) return;
+        if (!(event.target instanceof HTMLInputElement)) return;
+        if (!event.target.matches(GLOBAL_SEARCH_INPUT_SELECTOR)) return;
+
+        this.ensureGlobalSearchFilter(event.target, true);
+      },
+      true
+    );
+  }
+
+  private ensureGlobalSearchFilter(input: HTMLInputElement, notify: boolean): void {
+    if (this.hasExcalidrawSearchFilter(input.value)) return;
+
+    const query = input.value;
+    const selectionStart = input.selectionStart ?? input.value.length;
+    const selectionEnd = input.selectionEnd ?? selectionStart;
+    const prefix = `${EXCALIDRAW_SEARCH_FILTER} `;
+    input.value = `${prefix}${query}`;
+    this.managedGlobalSearchInputs.add(input);
+    if (globalThis.document.activeElement === input) {
+      input.setSelectionRange(prefix.length + selectionStart, prefix.length + selectionEnd);
+    }
+    if (notify) input.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  private removeManagedGlobalSearchFilters(
+    inputs: NodeListOf<HTMLInputElement> = globalThis.document.querySelectorAll<HTMLInputElement>(
+      GLOBAL_SEARCH_INPUT_SELECTOR
+    )
+  ): void {
+    inputs.forEach((input) => {
+      if (!this.managedGlobalSearchInputs.has(input)) return;
+
+      const nextValue = input.value
+        .replace(/(^|\s)-file:\.excalidraw\.md(?=\s|$)/, "$1")
+        .trimStart();
+      this.managedGlobalSearchInputs.delete(input);
+      if (nextValue === input.value) return;
+
+      input.value = nextValue;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
+  private hasExcalidrawSearchFilter(query: string): boolean {
+    return /(^|\s)-file:\.excalidraw\.md(?=\s|$)/.test(query);
   }
 
   private async activateView(): Promise<void> {
@@ -267,6 +355,14 @@ export default class KPlugin extends Plugin {
       if (view instanceof AttachView) {
         view.rescan(force);
       }
+    }
+  }
+
+  private syncOpenViewSettings(): void {
+    const leaves = this.app.workspace.getLeavesOfType(ATTACH_VIEW_TYPE);
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view instanceof AttachView) view.syncSettings();
     }
   }
 
@@ -657,20 +753,34 @@ export default class KPlugin extends Plugin {
     const plannedName = new Map<string, string>(); // nameKey -> entry.path
     const plannedFolderName = new Map<string, string>(); // folderKey::nameKey -> entry.path
 
-    // existing names for ambiguous
-    const existingByName = new Map<string, string[]>();
-    for (const f of this.app.vault.getFiles()) {
-      const key = this.nameKey(f.path);
-      const arr = existingByName.get(key) ?? [];
-      arr.push(f.path);
-      existingByName.set(key, arr);
-    }
-
     const candidates = [...map.values()]
       .filter((e) => this.isAttachmentKind(e.kind))
       .filter((e) => !e.tags.includes("missing"))
       .filter((e) => e.action.type === "moveToB" || e.action.type === "moveTo")
       .sort((a, b) => a.path.localeCompare(b.path));
+
+    // Only index basenames that could participate in a planned move. Large vaults
+    // may contain toolchains or generated files that are irrelevant to the plan.
+    const namesToCheck = new Set(
+      candidates
+        .filter(
+          (e) =>
+            this.settings.globalNameCheck !== "off" &&
+            (this.settings.globalNameCheck === "on-even-explicit" ||
+              !(e.action.type === "moveTo" && e.action.explicit))
+        )
+        .map((e) => this.nameKey(this.targetOf(e) ?? e.path))
+    );
+    const existingByName = new Map<string, string[]>();
+    if (namesToCheck.size > 0) {
+      for (const f of this.app.vault.getFiles()) {
+        const key = this.nameKey(f.path);
+        if (!namesToCheck.has(key)) continue;
+        const arr = existingByName.get(key) ?? [];
+        arr.push(f.path);
+        existingByName.set(key, arr);
+      }
+    }
 
     const preview: FileEntry[] = [];
 
@@ -898,28 +1008,13 @@ export default class KPlugin extends Plugin {
       const b = this.getFolder(this.settings.zoneB);
       if (b) scanFolder(b);
 
-      // Extra Scan logic
+      // Extra Scan only accepts explicit folders. Treating an empty entry as the
+      // vault root can freeze Obsidian when a vault contains large build trees.
       if (this.settings.extraScanEnabled) {
         const folders = this.settings.extraScanFolders.filter((f) => f.trim());
-        if (folders.length > 0) {
-          // Scan specific folders
-          for (const folderPath of folders) {
-            const folder = this.getFolder(folderPath);
-            if (folder) scanFolder(folder);
-          }
-        } else {
-          // Scan whole vault (files not already in A/B)
-          const aPath = normalizePath(this.settings.zoneA || "");
-          const bPath = normalizePath(this.settings.zoneB || "");
-          for (const f of this.app.vault.getFiles()) {
-            if (seen.has(f.path)) continue;
-            const p = normalizePath(f.path);
-            // Skip if in A or B
-            if (aPath && (p === aPath || p.startsWith(aPath + "/"))) continue;
-            if (bPath && (p === bPath || p.startsWith(bPath + "/"))) continue;
-            seen.add(f.path);
-            out.push(f);
-          }
+        for (const folderPath of folders) {
+          const folder = this.getFolder(folderPath);
+          if (folder) scanFolder(folder);
         }
       }
     }
@@ -1180,6 +1275,16 @@ export default class KPlugin extends Plugin {
       this.settings.extraScanFolders = [];
     }
 
+    const validMarks = new Set<OrganizerMark>(ORGANIZER_MARKS);
+    if (!Array.isArray(this.settings.visibleMarks)) {
+      this.settings.visibleMarks = [...DEFAULT_SETTINGS.visibleMarks];
+    } else {
+      const loadedMarks = this.settings.visibleMarks.filter(
+        (mark): mark is OrganizerMark => validMarks.has(mark)
+      );
+      this.settings.visibleMarks = ORGANIZER_MARKS.filter((mark) => loadedMarks.includes(mark));
+    }
+
     // ensure defaults never lost
     if (!this.settings.attachmentRulesText?.trim()) {
       this.settings.attachmentRulesText = DEFAULT_ATTACHMENT_RULES;
@@ -1230,7 +1335,9 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Enable extra scan")
-      .setDesc("Scan files outside workspace and staging to find referenced attachments")
+      .setDesc(
+        "Advanced: scan only explicitly listed folders outside workspace and staging. Keep disabled unless those folders are required"
+      )
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.extraScanEnabled).onChange(async (v) => {
           this.plugin.settings.extraScanEnabled = v;
@@ -1245,10 +1352,10 @@ class KPluginSettingTab extends PluginSettingTab {
       
       const folders = this.plugin.settings.extraScanFolders;
       
-      // Show info about empty = whole vault
-      new Setting(foldersContainer)
-        .setName("Extra scan folders")
-        .setDesc("Add specific folders to scan, or leave empty to scan entire vault");
+        // Explain that an empty list is safely inactive.
+        new Setting(foldersContainer)
+          .setName("Extra scan folders")
+          .setDesc("Add specific folders to scan outside workspace and staging");
 
       // Render existing folders
       for (let i = 0; i < folders.length; i++) {
@@ -1290,11 +1397,11 @@ class KPluginSettingTab extends PluginSettingTab {
 
       // Show current mode
       const activeCount = folders.filter((f) => f.trim()).length;
-      if (activeCount === 0) {
-        foldersContainer.createEl("p", {
-          text: "Currently scanning: whole vault (outside workspace/staging areas)",
-          cls: "setting-item-description",
-        });
+        if (activeCount === 0) {
+          foldersContainer.createEl("p", {
+            text: "No extra scan folders configured",
+            cls: "setting-item-description",
+          });
       } else {
         foldersContainer.createEl("p", {
           text: `Currently scanning: ${activeCount} specific folder(s)`,
@@ -1317,7 +1424,9 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Backlink scope")
-      .setDesc("Which notes to analyze for attachment references")
+      .setDesc(
+        "Choose which notes may add referenced files. Whole vault can include files outside the workspace"
+      )
       .addDropdown((dd) =>
         dd
           .addOption("zoneA-only", "Workspace only")
@@ -1450,7 +1559,9 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Plan external attachments")
-      .setDesc("Include referenced files outside workspace/staging in the plan")
+      .setDesc(
+        "Allow referenced outside files to be relocated. Keep disabled to inspect them without moving them"
+      )
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.planOutAttachments).onChange(async (v) => {
           this.plugin.settings.planOutAttachments = v;
@@ -1477,10 +1588,22 @@ class KPluginSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Show stats")
-      .setDesc("Display scan statistics (notes, attachments, conflicts) in the organizer view. Reopen the view for changes to take effect")
+      .setDesc("Display scan statistics (notes, attachments, conflicts) in the organizer view")
       .addToggle((tg) =>
         tg.setValue(this.plugin.settings.showStats).onChange(async (v) => {
           this.plugin.settings.showStats = v;
+          await this.plugin.saveSettings();
+        })
+      );
+
+    new Setting(containerEl).setName("Search").setHeading();
+
+    new Setting(containerEl)
+      .setName("Exclude Excalidraw files from global search")
+      .setDesc("Add the Excalidraw exclusion once when global search receives focus")
+      .addToggle((tg) =>
+        tg.setValue(this.plugin.settings.excludeExcalidrawFromGlobalSearch).onChange(async (v) => {
+          this.plugin.settings.excludeExcalidrawFromGlobalSearch = v;
           await this.plugin.saveSettings();
         })
       );

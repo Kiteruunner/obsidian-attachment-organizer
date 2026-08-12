@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint source
+        run: npm run lint
+
+      - name: Build plugin
+        run: npm run build
+
+      - name: Verify version metadata and release assets
+        run: |
+          node -e 'const manifest = require("./manifest.json"); const pkg = require("./package.json"); const versions = require("./versions.json"); if (manifest.version !== pkg.version || !versions[manifest.version]) process.exit(1);'
+          test -f main.js
+          test -f manifest.json
+          test -f styles.css
