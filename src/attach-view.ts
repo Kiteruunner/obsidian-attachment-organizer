@@ -14,6 +14,8 @@ type Provider = {
   // Settings access
   getShowStats?: () => boolean;
   getStagingFolder?: () => string;
+  getVisibleMarks?: () => Mark[];
+  setVisibleMarks?: (marks: Mark[]) => Promise<void>;
 };
 
 type TreeNode =
@@ -38,7 +40,7 @@ export class AttachView extends ItemView {
   private collapsed = new Set<string>();
 
   // Mark filter: which marks to show (multi-select)
-  private visibleMarks = new Set<string>(["-", "K", "B", "R", "M", "C"]);
+  private visibleMarks: Set<Mark>;
 
   private previewMode = false;
 
@@ -65,6 +67,7 @@ export class AttachView extends ItemView {
   constructor(leaf: WorkspaceLeaf, plugin: Provider) {
     super(leaf);
     this.plugin = plugin;
+    this.visibleMarks = new Set(plugin.getVisibleMarks?.() ?? ["-", "K", "B", "R", "M", "C"]);
   }
 
   getViewType(): string {
@@ -225,6 +228,7 @@ export class AttachView extends ItemView {
         else this.visibleMarks.add(mark);
 
         btn.toggleClass("is-active", this.visibleMarks.has(mark));
+        void this.plugin.setVisibleMarks?.([...this.visibleMarks]);
         this.render(); // list unchanged; filter affects visibility only
       });
     }
@@ -247,6 +251,7 @@ export class AttachView extends ItemView {
   }
 
   public rescan(force = false): void {
+    this.syncSettings();
     this.elTreeWrap.empty();
     this.elStats.setText("Scanning…");
     const t0 = globalThis.performance.now();
@@ -262,6 +267,11 @@ export class AttachView extends ItemView {
 
     this.updateMarkBadges(); // <- bubble counts
     this.render();
+  }
+
+  public syncSettings(): void {
+    const showStats = this.plugin.getShowStats?.() ?? false;
+    this.elStats?.toggleClass("is-hidden", !showStats);
   }
 
   private render(): void {
