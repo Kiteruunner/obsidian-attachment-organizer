@@ -25,6 +25,9 @@ The plugin scans your vault and classifies each attachment based on its location
 | `M` | Missing | Referenced in a note but file doesn't exist |
 | `C` | Conflict | Can't move due to naming conflict |
 
+## Preview
+<img height="500" alt="image" src="https://github.com/user-attachments/assets/2b858072-cdae-4e17-b399-da61af4a429a" />
+
 ## Installation
 
 ### From GitHub Release (Recommended)
